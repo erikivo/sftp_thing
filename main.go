@@ -20,16 +20,12 @@ const (
 )
 
 func main() {
-	// Create a CSV file
-	csvData := [][]string{
-		{"Name", "Email"},
-		{"Javier", "javier@example.com"},
-		{"Alex", "alex@example.com"},
-	}
+	// Create a text file
+	fileContent := "Name\tEmail\nJavier\tjavier@example.com\nAlex\talex@example.com"
 
-	fileName := "tomato.csv"
-	if err := createCSVFile(fileName, csvData); err != nil {
-		fmt.Printf("Error creating CSV file: %v\n", err)
+	fileName := "test.txt"
+	if err := createTextFile(fileName, fileContent); err != nil {
+		fmt.Printf("Error creating text file: %v\n", err)
 		return
 	}
 
@@ -79,11 +75,12 @@ func uploadToSFTP(client *sftp.Client, localPath string) error {
 	}
 	defer localFile.Close()
 
-	myVar := filepath.Join(remotePath, filepath.Base(localPath))
-	fmt.Println(myVar)
-	remoteFile, err := client.Create(myVar)
+	remoteFilePath := filepath.Join(remotePath, filepath.Base(localPath))
+	fmt.Println("Remote file path:", remoteFilePath)
+
+	remoteFile, err := client.OpenFile(remoteFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
 	if err != nil {
-		return fmt.Errorf("client create: %w", err)
+		return fmt.Errorf("client open file: %w", err)
 	}
 	defer remoteFile.Close()
 
@@ -112,6 +109,21 @@ func createCSVFile(fileName string, data [][]string) error {
 		if err := writer.Write(record); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func createTextFile(fileName, content string) error {
+	file, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(content)
+	if err != nil {
+		return err
 	}
 
 	return nil
