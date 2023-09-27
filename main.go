@@ -13,7 +13,7 @@ import (
 
 const (
 	sftpHost     = ""
-	sftpPort     = ""
+	sftpPort     = 22
 	sftpUsername = ""
 	sftpPassword = ""
 	remotePath   = ""
@@ -81,7 +81,7 @@ func uploadToSFTP(client *sftp.Client, localPath string) error {
 
 	myVar := filepath.Join(remotePath, filepath.Base(localPath))
 	fmt.Println(myVar)
-	remoteFile, err := client.Create("/")
+	remoteFile, err := client.Create(myVar)
 	if err != nil {
 		return fmt.Errorf("client create: %w", err)
 	}
