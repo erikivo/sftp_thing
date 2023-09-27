@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -11,11 +12,11 @@ import (
 )
 
 const (
-	sftpHost     = "HOST"
-	sftpPort     = 0
-	sftpUsername = "sftp_user"
-	sftpPassword = "PASSWORD"
-	remotePath   = "REMOTE PATH"
+	sftpHost     = ""
+	sftpPort     = ""
+	sftpUsername = ""
+	sftpPassword = ""
+	remotePath   = ""
 )
 
 func main() {
@@ -26,13 +27,12 @@ func main() {
 		{"Alex", "alex@example.com"},
 	}
 
-	fileName := "data.csv"
+	fileName := "tomato.csv"
 	if err := createCSVFile(fileName, csvData); err != nil {
 		fmt.Printf("Error creating CSV file: %v\n", err)
 		return
 	}
 
-	// Connect to the SFTP server
 	client, err := connectToSFTP()
 	if err != nil {
 		fmt.Printf("Error connecting to SFTP server: %v\n", err)
@@ -40,7 +40,62 @@ func main() {
 	}
 	defer client.Close()
 
-	fmt.Println("connected to sftp successfully.")
+	err = uploadToSFTP(client, fileName)
+	if err != nil {
+		fmt.Printf("Error uploading CSV file: %v\n", err)
+		return
+	}
+
+	fmt.Println("CSV file uploaded successfully.")
+}
+
+func connectToSFTP() (*sftp.Client, error) {
+	config := &ssh.ClientConfig{
+		User: sftpUsername,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(sftpPassword),
+		},
+		Timeout:         30 * time.Second,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", sftpHost, sftpPort), config)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := sftp.NewClient(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+func uploadToSFTP(client *sftp.Client, localPath string) error {
+	localFile, err := os.Open(localPath)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	defer localFile.Close()
+
+	myVar := filepath.Join(remotePath, filepath.Base(localPath))
+	fmt.Println(myVar)
+	remoteFile, err := client.Create("/")
+	if err != nil {
+		return fmt.Errorf("client create: %w", err)
+	}
+	defer remoteFile.Close()
+
+	if _, err := localFile.Seek(0, 0); err != nil {
+		return fmt.Errorf("localfile: %w", err)
+	}
+
+	if _, err := remoteFile.ReadFrom(localFile); err != nil {
+		return fmt.Errorf("remoteFile: %w", err)
+	}
+
+	return nil
 }
 
 func createCSVFile(fileName string, data [][]string) error {
@@ -60,26 +115,4 @@ func createCSVFile(fileName string, data [][]string) error {
 	}
 
 	return nil
-}
-
-func connectToSFTP() (*sftp.Client, error) {
-	config := &ssh.ClientConfig{
-		User: sftpUsername,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(sftpPassword),
-		},
-		Timeout: 5 * time.Second,
-	}
-
-	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", sftpHost, sftpPort), config)
-	if err != nil {
-		return nil, err
-	}
-
-	client, err := sftp.NewClient(conn)
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
 }
